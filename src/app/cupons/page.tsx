@@ -4,126 +4,132 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Ticket, ArrowLeft, Plus, Trash2, Check, Sparkles, 
-  Settings, Layers, Copy, CheckCircle, DollarSign, Globe
+  Settings, Layers, Copy, CheckCircle, DollarSign, Gift, Scissors
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Tipagem dos Cupons
+// Tipagem dos Cupons baseados no layout do Clube Flow
 interface Coupon {
   id: string;
   code: string;
-  brand: string;
-  brandLogo: string;
-  title: string;
-  discount: string;
-  expiry: string;
-  gradient: string;
-  glowColor: string;
-  claimedAt?: string;
-  status: 'active' | 'used' | 'expired';
+  category: string; // Ex: 'CLUBE DE VANTAGENS'
+  title: string;    // Ex: '1º CORTE GRÁTIS'
+  description: string; // Ex: 'Válido na primeira reserva'
+  badgeText: string;  // Ex: 'FREE OFF', '10% OFF'
+  validity: string;   // Ex: 'VÁLIDO PARA HOJE'
+  ringColor: string;  // Classe CSS para borda do anel (ex: border-cyan-400, text-cyan-400)
+  ringGlow: string;   // Sombra de brilho neon para o anel
+  status: 'active' | 'used';
+  claimedAt: string;
 }
 
-// Configurações de Marcas pré-definidas para o gerador
-const BRANDS_POOL = [
-  { name: 'Amazon', logo: 'AMZ', discount: 'R$ 50 OFF', title: 'Em Eletrônicos e Livros', gradient: 'from-amber-500 to-orange-600', glowColor: 'rgba(245, 158, 11, 0.4)' },
-  { name: 'Mercado Livre', logo: 'MELI', discount: '15% OFF', title: 'Frete Grátis acima de R$ 79', gradient: 'from-yellow-400 to-amber-500', glowColor: 'rgba(234, 179, 8, 0.4)' },
-  { name: 'Shopee', logo: 'SHP', discount: 'R$ 20 OFF', title: 'Sem valor mínimo de compra', gradient: 'from-orange-500 to-red-600', glowColor: 'rgba(249, 115, 22, 0.4)' },
-  { name: 'AliExpress', logo: 'ALI', discount: '30% OFF', title: 'Seleção Choice com entrega rápida', gradient: 'from-red-500 to-rose-700', glowColor: 'rgba(239, 68, 68, 0.4)' },
-  { name: 'Magalu', logo: 'MGL', discount: '10% OFF', title: 'Válido em todo o departamento de móveis', gradient: 'from-blue-500 to-indigo-600', glowColor: 'rgba(59, 130, 246, 0.4)' }
+// Modelos pré-configurados do Clube Flow
+const DEFAULT_COUPONS: Coupon[] = [
+  {
+    id: 'flow-1',
+    code: 'PRIMEIROFREE',
+    category: 'CLUBE DE VANTAGENS',
+    title: '1º CORTE GRÁTIS',
+    description: 'Válido na primeira reserva',
+    badgeText: 'FREE OFF',
+    validity: 'VÁLIDO PARA HOJE',
+    ringColor: 'border-[#00E5FF] text-[#00E5FF]',
+    ringGlow: '0 0 15px rgba(0, 229, 255, 0.5)',
+    status: 'active',
+    claimedAt: new Date().toLocaleDateString('pt-BR')
+  },
+  {
+    id: 'flow-2',
+    code: 'BARBA10',
+    category: 'CLUBE DE VANTAGENS',
+    title: '10% OFF BARBA',
+    description: 'Qualquer barbearia',
+    badgeText: '10% OFF',
+    validity: 'VÁLIDO PARA HOJE',
+    ringColor: 'border-[#FFD54F] text-[#FFD54F]',
+    ringGlow: '0 0 15px rgba(255, 213, 79, 0.5)',
+    status: 'active',
+    claimedAt: new Date().toLocaleDateString('pt-BR')
+  },
+  {
+    id: 'flow-3',
+    code: 'VIPFLOW',
+    category: 'CLUBE DE VANTAGENS',
+    title: 'COMBO VIP',
+    description: 'Desconto em serviços combinados',
+    badgeText: 'COMBO OFF',
+    validity: 'VÁLIDO PARA HOJE',
+    ringColor: 'border-[#FF4081] text-[#FF4081]',
+    ringGlow: '0 0 15px rgba(255, 64, 129, 0.5)',
+    status: 'active',
+    claimedAt: new Date().toLocaleDateString('pt-BR')
+  }
 ];
 
 export default function CuponsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [filterBrand, setFilterBrand] = useState('all');
   
-  // Estados do Gerador
+  // Estado do Gerador
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCoupon, setGeneratedCoupon] = useState<Coupon | null>(null);
   
-  // Formulário do Admin para novo tipo de cupom
+  // Formulário do Admin para novos cupons do Clube Flow
   const [newCouponForm, setNewCouponForm] = useState({
-    brand: 'Amazon',
-    discount: '15% OFF',
-    title: 'Cupom Especial New Company',
-    gradient: 'from-indigo-500 to-purple-600',
-    glowColor: 'rgba(99, 102, 241, 0.4)',
-    expiry: '31/12/2026'
+    title: 'CORTE + BARBA VIP',
+    description: 'Serviço completo com bebida inclusa',
+    badgeText: '20% OFF',
+    validity: 'VÁLIDO PARA HOJE',
+    ringColor: '#00E5FF' // Cor hexadecimal para mapear
   });
 
-  // Carregar dados iniciais e persistência
   useEffect(() => {
-    const savedCoupons = localStorage.getItem('fidelix_demo_coupons');
-    if (savedCoupons) {
-      setCoupons(JSON.parse(savedCoupons));
+    const saved = localStorage.getItem('flow_club_coupons');
+    if (saved) {
+      setCoupons(JSON.parse(saved));
     } else {
-      // Iniciar com alguns cupons padrão
-      const defaultCoupons: Coupon[] = [
-        {
-          id: 'cp-1',
-          code: 'AMAZON50NEW',
-          brand: 'Amazon',
-          brandLogo: 'AMZ',
-          title: 'Em Eletrônicos e Livros',
-          discount: 'R$ 50 OFF',
-          expiry: '30/08/2026',
-          gradient: 'from-amber-500 to-orange-600',
-          glowColor: 'rgba(245, 158, 11, 0.4)',
-          status: 'active',
-          claimedAt: new Date().toLocaleDateString('pt-BR')
-        },
-        {
-          id: 'cp-2',
-          code: 'SHOPEE20OFF',
-          brand: 'Shopee',
-          brandLogo: 'SHP',
-          title: 'Sem valor mínimo de compra',
-          discount: 'R$ 20 OFF',
-          expiry: '15/09/2026',
-          gradient: 'from-orange-500 to-red-600',
-          glowColor: 'rgba(249, 115, 22, 0.4)',
-          status: 'active',
-          claimedAt: new Date().toLocaleDateString('pt-BR')
-        }
-      ];
-      setCoupons(defaultCoupons);
-      localStorage.setItem('fidelix_demo_coupons', JSON.stringify(defaultCoupons));
+      setCoupons(DEFAULT_COUPONS);
+      localStorage.setItem('flow_club_coupons', JSON.stringify(DEFAULT_COUPONS));
     }
   }, []);
 
-  const saveToLocalStorage = (updatedCoupons: Coupon[]) => {
-    setCoupons(updatedCoupons);
-    localStorage.setItem('fidelix_demo_coupons', JSON.stringify(updatedCoupons));
+  const saveToLocalStorage = (updated: Coupon[]) => {
+    setCoupons(updated);
+    localStorage.setItem('flow_club_coupons', JSON.stringify(updated));
   };
 
-  // Copiar código
   const handleCopyCode = (id: string, code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Gerar Cupom Aleatório no Fluxo do Cliente
+  // Gerar novo cupom aleatório do Clube Flow
   const handleGenerateCoupon = () => {
     setIsGenerating(true);
     setGeneratedCoupon(null);
     
     setTimeout(() => {
-      // Seleciona marca aleatória
-      const randomBrand = BRANDS_POOL[Math.floor(Math.random() * BRANDS_POOL.length)];
-      const uniqueCode = `${randomBrand.name.substring(0, 3).toUpperCase()}${Math.floor(100 + Math.random() * 900)}FLOW`;
+      const templates = [
+        { title: 'BEBIDA GRÁTIS', desc: 'Na compra de qualquer serviço', badge: 'BEER FREE', color: 'border-[#00E5FF] text-[#00E5FF]', glow: '0 0 15px rgba(0, 229, 255, 0.5)', code: 'DRINKFREE' },
+        { title: '15% OFF SÁBADO', desc: 'Válido apenas aos sábados', badge: '15% OFF', color: 'border-[#FFD54F] text-[#FFD54F]', glow: '0 0 15px rgba(255, 213, 79, 0.5)', code: 'SABADO15' },
+        { title: 'SOBRANCELHA FREE', desc: 'Cortando cabelo e barba', badge: 'VIP FREE', color: 'border-[#FF4081] text-[#FF4081]', glow: '0 0 15px rgba(255, 64, 129, 0.5)', code: 'BROWFREE' }
+      ];
       
+      const selected = templates[Math.floor(Math.random() * templates.length)];
+      const uniqueCode = `${selected.code}${Math.floor(10 + Math.random() * 90)}`;
+
       const newCoupon: Coupon = {
-        id: `cp-${Date.now()}`,
+        id: `flow-${Date.now()}`,
         code: uniqueCode,
-        brand: randomBrand.name,
-        brandLogo: randomBrand.logo,
-        title: randomBrand.title,
-        discount: randomBrand.discount,
-        expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
-        gradient: randomBrand.gradient,
-        glowColor: randomBrand.glowColor,
+        category: 'CLUBE DE VANTAGENS',
+        title: selected.title,
+        description: selected.desc,
+        badgeText: selected.badge,
+        validity: 'VÁLIDO PARA HOJE',
+        ringColor: selected.color,
+        ringGlow: selected.glow,
         status: 'active',
         claimedAt: new Date().toLocaleDateString('pt-BR')
       };
@@ -132,41 +138,44 @@ export default function CuponsPage() {
       saveToLocalStorage(updated);
       setGeneratedCoupon(newCoupon);
       setIsGenerating(false);
-    }, 1800); // tempo para o efeito visual de carregamento
+    }, 1500);
   };
 
-  // Criar cupom personalizado via Admin Panel
+  // Cadastrar no painel Admin
   const handleCreateAdminCoupon = (e: React.FormEvent) => {
     e.preventDefault();
-    const uniqueCode = `${newCouponForm.brand.substring(0, 3).toUpperCase()}${Math.floor(100 + Math.random() * 900)}ADM`;
+    const cleanCode = newCouponForm.title.replace(/\s+/g, '').substring(0, 8).toUpperCase() + Math.floor(10 + Math.random() * 90);
     
-    const logoMap: Record<string, string> = {
-      'Amazon': 'AMZ', 'Mercado Livre': 'MELI', 'Shopee': 'SHP', 
-      'AliExpress': 'ALI', 'Magalu': 'MGL'
-    };
+    // Mapeamento de cores
+    let ringColorClass = 'border-[#00E5FF] text-[#00E5FF]';
+    let ringGlowVal = '0 0 15px rgba(0, 229, 255, 0.5)';
+    if (newCouponForm.ringColor === '#FFD54F') {
+      ringColorClass = 'border-[#FFD54F] text-[#FFD54F]';
+      ringGlowVal = '0 0 15px rgba(255, 213, 79, 0.5)';
+    } else if (newCouponForm.ringColor === '#FF4081') {
+      ringColorClass = 'border-[#FF4081] text-[#FF4081]';
+      ringGlowVal = '0 0 15px rgba(255, 64, 129, 0.5)';
+    }
 
     const newCoupon: Coupon = {
-      id: `cp-${Date.now()}`,
-      code: uniqueCode,
-      brand: newCouponForm.brand,
-      brandLogo: logoMap[newCouponForm.brand] || 'BRAND',
-      title: newCouponForm.title,
-      discount: newCouponForm.discount,
-      expiry: newCouponForm.expiry || '31/12/2026',
-      gradient: newCouponForm.gradient,
-      glowColor: newCouponForm.glowColor,
+      id: `flow-${Date.now()}`,
+      code: cleanCode,
+      category: 'CLUBE DE VANTAGENS',
+      title: newCouponForm.title.toUpperCase(),
+      description: newCouponForm.description,
+      badgeText: newCouponForm.badgeText.toUpperCase(),
+      validity: newCouponForm.validity.toUpperCase(),
+      ringColor: ringColorClass,
+      ringGlow: ringGlowVal,
       status: 'active',
       claimedAt: new Date().toLocaleDateString('pt-BR')
     };
 
     const updated = [newCoupon, ...coupons];
     saveToLocalStorage(updated);
-    
-    // Reset form or success feedback
-    alert('Novo tipo de cupom cadastrado com sucesso no sistema!');
+    alert('Cupom cadastrado com sucesso no Clube Flow!');
   };
 
-  // Deletar ou revogar cupom
   const handleDeleteCoupon = (id: string) => {
     const updated = coupons.filter(c => c.id !== id);
     saveToLocalStorage(updated);
@@ -182,390 +191,244 @@ export default function CuponsPage() {
     saveToLocalStorage(updated);
   };
 
-  // Estatísticas para o Dashboard do Administrador
-  const totalClaimed = coupons.length;
-  const activeCount = coupons.filter(c => c.status === 'active').length;
-  const usedCount = coupons.filter(c => c.status === 'used').length;
-  const estimatedSavings = coupons.reduce((acc, c) => {
-    const value = c.discount.includes('R$') ? parseInt(c.discount.replace(/\D/g, '')) : 35; // default R$ 35 para porcentagens
-    return acc + (c.status === 'used' ? value : 0);
-  }, 0);
-
-  // Efeito do card 3D (tilt)
-  const [tiltStyle, setTiltStyle] = useState<Record<string, string>>({});
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const card = cardRef.current;
+  // Efeito 3D Tilt individual
+  const [tiltStyles, setTiltStyles] = useState<Record<string, string>>({});
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
+    const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const xc = rect.width / 2;
     const yc = rect.height / 2;
-    const angleX = (yc - y) / 10; // Rotação X
-    const angleY = (x - xc) / 10; // Rotação Y
+    const angleX = (yc - y) / 12;
+    const angleY = (x - xc) / 12;
     
-    setTiltStyle({
-      transform: `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) scale3d(1.02, 1.02, 1.02)`,
-      transition: 'transform 0.1s ease-out'
-    });
+    setTiltStyles(prev => ({
+      ...prev,
+      [id]: `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) scale3d(1.02, 1.02, 1.02)`
+    }));
   };
 
-  const handleMouseLeave = () => {
-    setTiltStyle({
-      transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
-      transition: 'transform 0.5s ease-out'
-    });
+  const handleMouseLeave = (id: string) => {
+    setTiltStyles(prev => ({
+      ...prev,
+      [id]: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
+    }));
   };
+
+  // Estatísticas Admin
+  const totalCount = coupons.length;
+  const activeCount = coupons.filter(c => c.status === 'active').length;
+  const usedCount = coupons.filter(c => c.status === 'used').length;
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-zinc-100 font-sans selection:bg-orange-500/30 overflow-x-hidden relative scroll-smooth">
-      {/* Background Texture & Grid */}
-      <div className="fixed inset-0 bg-[url('/new_company_bg.png')] bg-cover bg-center opacity-10 pointer-events-none z-0" />
-      <div className="fixed inset-0 bg-[linear-gradient(to_right,#1f29370a_1px,transparent_1px),linear-gradient(to_bottom,#1f29370a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-0" />
+    <div className="min-h-screen bg-[#070708] text-zinc-100 font-sans selection:bg-cyan-500/30 overflow-x-hidden relative scroll-smooth">
+      {/* Background Barber Shop decorativo desaturado */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center opacity-[0.06] pointer-events-none z-0"
+        style={{ backgroundImage: "url('/new_company_bg.png')" }} 
+      />
+      {/* Grid Overlay sutil */}
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#111_1px,transparent_1px),linear-gradient(to_bottom,#111_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
       
-      {/* Glow Effects */}
-      <div className="absolute top-[10%] right-[10%] w-[450px] h-[450px] bg-orange-500/10 rounded-full blur-[150px] pointer-events-none z-0" />
-      <div className="absolute bottom-[10%] left-[5%] w-[450px] h-[450px] bg-yellow-500/10 rounded-full blur-[150px] pointer-events-none z-0" />
+      {/* Glow do Cabeçalho */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-cyan-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0A]/85 backdrop-blur-md border-b border-white/5 px-6 py-4">
+      <header className="sticky top-0 z-40 bg-[#070708]/90 backdrop-blur-md border-b border-white/5 px-6 py-4">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Link href="/" className="p-2 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white transition">
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div>
-              <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
-                FIDELIX COUPO-VERSE
+              <span className="text-xs font-bold tracking-wider text-zinc-400 flex items-center gap-1">
+                <Scissors className="w-3.5 h-3.5 text-cyan-400" /> CLUBE FLOW
               </span>
-              <p className="text-[10px] text-zinc-500 font-mono">LAB / DEMONSTRAÇÃO 3D LIQUID GLASS</p>
+              <p className="text-[9px] text-zinc-600 font-mono tracking-widest uppercase">Visual Fidelity Prototype</p>
             </div>
           </div>
 
-          {/* Toggle Modo Administrador / Cliente */}
-          <div className="bg-zinc-900/80 border border-white/5 p-1 rounded-xl flex items-center gap-1">
+          <div className="bg-zinc-950 border border-white/5 p-1 rounded-xl flex items-center gap-1">
             <button 
               onClick={() => setIsAdmin(false)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${
-                !isAdmin ? 'bg-orange-500 text-white shadow-md' : 'text-zinc-400 hover:text-zinc-200'
+              className={`px-3.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                !isAdmin ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Ticket className="w-3.5 h-3.5" /> Cliente
+              Meus Cupons
             </button>
             <button 
               onClick={() => setIsAdmin(true)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${
-                isAdmin ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-400 hover:text-zinc-200'
+              className={`px-3.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                isAdmin ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Settings className="w-3.5 h-3.5" /> Admin Panel
+              Painel Admin
             </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-12 relative z-10">
-        
-        {/* VIEW DO CLIENTE (GERADOR & CARTEIRA) */}
+
         {!isAdmin ? (
-          <div className="grid lg:grid-cols-12 gap-12 items-start">
+          <div className="space-y-12">
             
-            {/* LADO ESQUERDO: O GERADOR DE CUPOM */}
-            <div className="lg:col-span-5 space-y-8">
-              <div className="space-y-4">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-semibold uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5" /> Gerador Inteligente
-                </span>
-                <h1 className="text-3xl font-extrabold text-white">Gere Cupons Exclusivos em 3D</h1>
-                <p className="text-zinc-400 text-xs font-light leading-relaxed">
-                  Clique no gerador para rodar o algoritmo de resgate instantâneo. A sua conta receberá um cupom premium com tecnologia 3D Liquid Glass para as melhores lojas do e-commerce brasileiro.
-                </p>
+            {/* Seção Principal: Seus Cupons (Clube Flow) */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  Seus Cupons (Clube Flow)
+                </h1>
               </div>
 
-              {/* Botão de Ação / Gerador */}
-              <div className="p-8 rounded-3xl bg-zinc-900/40 border border-white/5 flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden backdrop-blur-sm">
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-yellow-500/5 pointer-events-none" />
-                
-                {/* Visual Placeholder do Gerador */}
-                <div className="relative w-32 h-32 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-orange-500/10 rounded-full blur-xl animate-pulse" />
-                  <motion.div 
-                    animate={isGenerating ? { rotate: 360, scale: [1, 1.1, 1] } : {}}
-                    transition={isGenerating ? { repeat: Infinity, duration: 1.5, ease: "linear" } : {}}
-                    className={`w-20 h-20 rounded-2xl border flex items-center justify-center shadow-lg transition duration-500 ${
-                      isGenerating ? 'bg-orange-500/20 border-orange-400/40 text-orange-400' : 'bg-zinc-950 border-white/10 text-zinc-500'
+              {/* Grid Horizontal de Tickets */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {coupons.map((coupon) => (
+                  <div
+                    key={coupon.id}
+                    onMouseMove={(e) => handleMouseMove(e, coupon.id)}
+                    onMouseLeave={() => handleMouseLeave(coupon.id)}
+                    style={{
+                      transform: tiltStyles[coupon.id] || 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
+                      transition: 'transform 0.1s ease-out',
+                    }}
+                    className={`h-40 rounded-xl bg-black/40 border border-white/10 relative overflow-hidden flex select-none backdrop-blur-md transition-opacity duration-300 ${
+                      coupon.status === 'used' ? 'opacity-40' : 'opacity-100 hover:border-white/20'
                     }`}
                   >
-                    <Ticket className="w-8 h-8" />
-                  </motion.div>
-                </div>
+                    {/* Meio Círculo Recortado Esquerdo */}
+                    <div className="absolute top-1/2 -left-2.5 w-5 h-5 rounded-full bg-[#070708] -translate-y-1/2 border-r border-white/10 z-20" />
+                    {/* Meio Círculo Recortado Direito */}
+                    <div className="absolute top-1/2 -right-2.5 w-5 h-5 rounded-full bg-[#070708] -translate-y-1/2 border-l border-white/10 z-20" />
 
-                <div className="space-y-2 relative z-10">
-                  <h3 className="font-bold text-sm text-white">Sorteador Automático Fidelix</h3>
-                  <p className="text-zinc-500 text-[11px] max-w-xs">Gera cupons de 10% a 30% de desconto ou até R$ 50 OFF</p>
+                    {/* Picote rip-off no topo do pontilhado */}
+                    <div className="absolute top-[-7px] left-[84px] w-3.5 h-3.5 rounded-full bg-[#070708] border-b border-white/10 z-20" />
+                    {/* Picote rip-off na base do pontilhado */}
+                    <div className="absolute bottom-[-7px] left-[84px] w-3.5 h-3.5 rounded-full bg-[#070708] border-t border-white/10 z-20" />
+
+                    {/* LADO ESQUERDO: BARCODE & CÓDIGO */}
+                    <div className="w-[92px] py-4 px-3 flex flex-col justify-between items-center border-r border-dashed border-white/10 relative shrink-0">
+                      <span className="text-[7px] text-zinc-500 font-mono tracking-widest">FLOW TICKET</span>
+                      
+                      {/* Barcode */}
+                      <div className="flex gap-[1.5px] items-end h-10 w-full px-1">
+                        {[1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2].map((w, i) => (
+                          <div 
+                            key={i} 
+                            style={{ width: `${w * 0.8}px` }} 
+                            className="h-full bg-zinc-400 shrink-0" 
+                          />
+                        ))}
+                      </div>
+
+                      {/* Código Copiável */}
+                      <button
+                        onClick={() => handleCopyCode(coupon.id, coupon.code)}
+                        disabled={coupon.status === 'used'}
+                        className="w-full py-1 bg-zinc-950 hover:bg-zinc-900 border border-white/5 text-white font-mono text-[8px] font-bold rounded truncate tracking-tighter uppercase transition cursor-pointer flex items-center justify-center"
+                      >
+                        {copiedId === coupon.id ? 'COPIADO' : coupon.code}
+                      </button>
+                    </div>
+
+                    {/* LADO DIREITO: DADOS DO PRODUTO & ANEL NEON */}
+                    <div className="flex-1 p-4 flex items-center justify-between gap-2 relative">
+                      <div className="flex flex-col justify-between h-full">
+                        <div>
+                          <span className="text-[8px] text-zinc-500 font-bold tracking-wider uppercase block">
+                            {coupon.category}
+                          </span>
+                          <h3 className="text-base font-extrabold text-white tracking-tight mt-1 leading-tight">
+                            {coupon.title}
+                          </h3>
+                          <p className="text-[10px] text-zinc-400 font-light mt-0.5 leading-snug max-w-[130px] line-clamp-2">
+                            {coupon.description}
+                          </p>
+                        </div>
+                        
+                        <span className="text-[8px] text-zinc-500 font-bold font-mono tracking-wider block">
+                          {coupon.validity}
+                        </span>
+                      </div>
+
+                      {/* Anel de Destaque Neon 3D */}
+                      <div className="flex flex-col items-center justify-center shrink-0 pr-2">
+                        <div 
+                          style={{ boxShadow: coupon.ringGlow }}
+                          className={`w-14 h-14 rounded-full border-2 bg-black/65 flex flex-col items-center justify-center text-center shrink-0 ${coupon.ringColor}`}
+                        >
+                          <span className="text-[9px] font-extrabold leading-none tracking-tighter uppercase">
+                            {coupon.badgeText.split(' ')[0]}
+                          </span>
+                          {coupon.badgeText.split(' ')[1] && (
+                            <span className="text-[7px] font-bold leading-none tracking-wider uppercase mt-0.5">
+                              {coupon.badgeText.split(' ')[1]}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Opção Rápida de Administrador (Usar Cupom) */}
+                      {coupon.status === 'active' && (
+                        <button
+                          onClick={() => handleToggleUsed(coupon.id)}
+                          className="absolute top-2 right-2 p-1 hover:bg-white/5 rounded text-[8px] text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
+                          title="Marcar como usado"
+                        >
+                          Usar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Gerador de Cupons (Simulação) */}
+            <div className="border-t border-white/5 pt-12 space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-cyan-400" /> Resgatar Novos Cupons
+                </h2>
+                <p className="text-zinc-500 text-xs mt-0.5">Participe das nossas promoções e ganhe cupons com visual exclusivo Clube Flow.</p>
+              </div>
+
+              <div className="max-w-xl mx-auto p-8 rounded-2xl bg-zinc-950 border border-white/5 text-center space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none" />
+                
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Roleta de Benefícios Clube Flow</h3>
+                  <p className="text-zinc-500 text-xs max-w-sm mx-auto">Sorteie aleatoriamente um novo cupom e adicione na sua lista acima.</p>
                 </div>
 
                 <button
                   onClick={handleGenerateCoupon}
                   disabled={isGenerating}
-                  className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 text-black hover:from-orange-400 hover:to-yellow-400 transition font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-orange-500/15 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full max-w-xs mx-auto py-3 px-6 rounded-xl bg-cyan-400 text-black hover:bg-cyan-300 font-extrabold text-xs transition uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGenerating ? (
                     <>
                       <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      Processando Resgate...
+                      Emitindo Cupom...
                     </>
                   ) : (
                     <>
-                      Girar Roleta & Gerar Cupom <Sparkles className="w-4 h-4" />
+                      Sortear Novo Cupom <Sparkles className="w-4 h-4" />
                     </>
                   )}
                 </button>
-              </div>
 
-              {/* CUPOM ATIVO GERADO (TELA DE REVELAÇÃO 3D LIQUID GLASS) */}
-              <AnimatePresence>
                 {generatedCoupon && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                    className="space-y-3"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold"
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" /> Adicionado à sua carteira
-                      </span>
-                      <button 
-                        onClick={() => setGeneratedCoupon(null)}
-                        className="text-zinc-500 hover:text-white text-[10px] cursor-pointer"
-                      >
-                        Fechar Visualização
-                      </button>
-                    </div>
-
-                    {/* LIQUID GLASS 3D TICKET */}
-                    <div 
-                      ref={cardRef}
-                      onMouseMove={handleMouseMove}
-                      onMouseLeave={handleMouseLeave}
-                      style={{
-                        ...tiltStyle,
-                        boxShadow: `0 20px 40px -15px ${generatedCoupon.glowColor}`,
-                      }}
-                      className="w-full h-44 rounded-2xl bg-white/5 border border-white/10 relative overflow-hidden flex select-none backdrop-blur-md cursor-grab active:cursor-grabbing transition duration-300"
-                    >
-                      {/* Reflexo / Glow Interno */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/15 pointer-events-none z-10" />
-                      
-                      {/* Corte Lateral Circular Esquerdo */}
-                      <div className="absolute top-1/2 -left-3 w-6 h-6 rounded-full bg-[#0A0A0A] -translate-y-1/2 border-r border-white/10 z-20" />
-                      
-                      {/* Corte Lateral Circular Direito */}
-                      <div className="absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-[#0A0A0A] -translate-y-1/2 border-l border-white/10 z-20" />
-
-                      {/* CORPO DO TICKET - LADO ESQUERDO (DADOS DO CUPOM) */}
-                      <div className="flex-1 p-5 flex flex-col justify-between relative z-10 pr-6">
-                        {/* Top: Logo & Expiry */}
-                        <div className="flex justify-between items-start">
-                          <div className={`px-3 py-1.5 rounded-lg bg-gradient-to-r ${generatedCoupon.gradient} text-white font-extrabold text-[10px] tracking-wider shadow-sm`}>
-                            {generatedCoupon.brand}
-                          </div>
-                          <span className="text-[9px] text-zinc-500 font-mono uppercase">Expira em {generatedCoupon.expiry}</span>
-                        </div>
-
-                        {/* Middle: Title & Discount */}
-                        <div className="space-y-1 my-2">
-                          <span className="text-3xl md:text-4xl font-extrabold tracking-tight text-white block">
-                            {generatedCoupon.discount}
-                          </span>
-                          <span className="text-[10px] text-zinc-400 font-light line-clamp-1">
-                            {generatedCoupon.title}
-                          </span>
-                        </div>
-
-                        {/* Bottom: Instruções */}
-                        <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 font-mono">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          PRONTO PARA USO
-                        </div>
-                      </div>
-
-                      {/* LINHA SEPARADORA (PONTILHADA) */}
-                      <div className="w-px border-l border-dashed border-white/20 h-full relative z-10 flex flex-col justify-between items-center py-2 shrink-0">
-                        <div className="w-1 h-1 bg-[#0A0A0A] rounded-full" />
-                        <div className="w-1 h-1 bg-[#0A0A0A] rounded-full" />
-                      </div>
-
-                      {/* CORPO DO TICKET - LADO DIREITO (BARCODE / AÇÃO) */}
-                      <div className="w-28 bg-white/5 flex flex-col justify-between items-center p-4 relative z-10 shrink-0 select-none">
-                        {/* Label */}
-                        <span className="text-[8px] font-bold text-zinc-500 tracking-widest uppercase">CÓDIGO</span>
-                        
-                        {/* Barcode Mockup */}
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="flex items-end gap-[2px] h-10">
-                            {[2,4,1,3,2,1,4,2,3,1,2,4,1,2,3].map((val, idx) => (
-                              <div 
-                                key={idx} 
-                                style={{ width: `${val === 4 ? 3 : val === 3 ? 2.2 : val === 2 ? 1.5 : 1}px` }} 
-                                className="h-full bg-zinc-300" 
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[9px] font-mono text-zinc-400 tracking-wider">
-                            {generatedCoupon.code}
-                          </span>
-                        </div>
-
-                        {/* Ação rápida */}
-                        <button
-                          onClick={() => handleCopyCode(generatedCoupon.id, generatedCoupon.code)}
-                          className="w-full py-1 px-2 rounded bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold text-[8px] tracking-wider uppercase transition cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          {copiedId === generatedCoupon.id ? (
-                            <>
-                              <Check className="w-2.5 h-2.5" /> Copiado
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-2.5 h-2.5" /> Copiar
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
+                    Sucesso! O cupom <span className="font-mono text-white bg-zinc-900 px-1.5 py-0.5 rounded">{generatedCoupon.code}</span> foi gerado e adicionado à sua carteira.
                   </motion.div>
-                )}
-              </AnimatePresence>
-
-            </div>
-
-            {/* LADO DIREITO: CARTEIRA DE CUPONS SALVOS */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Ticket className="w-5 h-5 text-orange-400" /> Meus Cupons
-                  </h2>
-                  <p className="text-zinc-500 text-xs mt-0.5">Sua coleção de cupons de descontos resgatados</p>
-                </div>
-
-                {/* Filtro por Marca */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono">Filtrar:</span>
-                  <select
-                    value={filterBrand}
-                    onChange={(e) => setFilterBrand(e.target.value)}
-                    className="bg-zinc-900 border border-white/5 text-zinc-400 rounded-lg py-1 px-2 text-xs outline-none focus:border-orange-500 transition animate-none"
-                  >
-                    <option value="all">Todas as marcas</option>
-                    <option value="Amazon">Amazon</option>
-                    <option value="Mercado Livre">Mercado Livre</option>
-                    <option value="Shopee">Shopee</option>
-                    <option value="AliExpress">AliExpress</option>
-                    <option value="Magalu">Magalu</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Lista de Cupons da Carteira */}
-              <div className="grid gap-4">
-                {coupons.filter(c => filterBrand === 'all' || c.brand === filterBrand).length === 0 ? (
-                  <div className="p-12 rounded-2xl bg-zinc-900/10 border border-dashed border-white/5 text-center text-zinc-500">
-                    <Ticket className="w-8 h-8 mx-auto text-zinc-700 mb-2" />
-                    <p className="text-xs">Nenhum cupom ativo encontrado na carteira.</p>
-                  </div>
-                ) : (
-                  coupons
-                    .filter(c => filterBrand === 'all' || c.brand === filterBrand)
-                    .map((coupon) => (
-                      <div
-                        key={coupon.id}
-                        className={`rounded-2xl border transition-all relative flex flex-col md:flex-row items-stretch select-none overflow-hidden ${
-                          coupon.status === 'used' 
-                            ? 'bg-zinc-950/40 border-white/5 opacity-60' 
-                            : 'bg-zinc-900/30 border-white/5 hover:border-white/10'
-                        }`}
-                      >
-                        {/* Tag de Usado */}
-                        {coupon.status === 'used' && (
-                          <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[8px] font-bold uppercase tracking-wider border border-white/5">
-                            Resgatado / Usado
-                          </div>
-                        )}
-
-                        {/* Corpo Principal */}
-                        <div className="flex-1 p-5 flex flex-col justify-between gap-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase font-mono">Fidelix Club</span>
-                            {coupon.status !== 'used' && (
-                              <span className="text-[9px] text-zinc-500 font-mono">Expira: {coupon.expiry}</span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${coupon.gradient} flex items-center justify-center text-white font-extrabold text-[11px] tracking-wider shrink-0`}>
-                              {coupon.brandLogo}
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-extrabold text-white leading-tight">{coupon.discount}</h4>
-                              <p className="text-zinc-400 text-xs font-light">{coupon.brand} - {coupon.title}</p>
-                            </div>
-                          </div>
-
-                          {/* Rodapé Ações */}
-                          <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                            <span className="text-[9px] text-zinc-500">Adicionado em {coupon.claimedAt}</span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleUsed(coupon.id)}
-                                className={`text-[10px] font-bold px-2.5 py-1 rounded transition cursor-pointer ${
-                                  coupon.status === 'used'
-                                    ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                    : 'bg-zinc-950 text-zinc-400 border border-white/5 hover:border-white/10 hover:text-white'
-                                }`}
-                              >
-                                {coupon.status === 'used' ? 'Reativar' : 'Marcar como Usado'}
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCoupon(coupon.id)}
-                                className="p-1 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 rounded transition cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Painel lateral de cupom/código */}
-                        <div className="w-full md:w-44 bg-zinc-950/60 border-t md:border-t-0 md:border-l border-white/5 flex flex-row md:flex-col justify-between items-center p-4 gap-4">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] font-semibold text-zinc-500 uppercase tracking-widest">Código</span>
-                            <span className="text-xs font-mono font-bold text-white tracking-wider mt-0.5">{coupon.code}</span>
-                          </div>
-                          
-                          <button
-                            onClick={() => handleCopyCode(coupon.id, coupon.code)}
-                            disabled={coupon.status === 'used'}
-                            className="py-1.5 px-3 rounded bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-[9px] tracking-wider uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
-                          >
-                            {copiedId === coupon.id ? (
-                              <>
-                                <Check className="w-3 h-3" /> Copiado
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3 h-3" /> Copiar
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                      </div>
-                    ))
                 )}
               </div>
             </div>
@@ -573,209 +436,139 @@ export default function CuponsPage() {
           </div>
         ) : (
           
-          /* PAINEL DO ADMINISTRADOR (ABA DE CUPONS E ESTATÍSTICAS) */
+          /* PAINEL ADMINISTRATIVO */
           <div className="space-y-8 animate-fadeIn">
-            
-            {/* Header Admin */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
-              <div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-semibold uppercase tracking-wider">
-                  <Settings className="w-3 h-3" /> Administrativo Fidelix
-                </span>
-                <h1 className="text-2xl font-bold text-white mt-1">Painel do Administrador — Gestão de Cupons</h1>
-                <p className="text-zinc-400 text-xs font-light">Monitore o desempenho, taxas de resgate e crie novas campanhas de incentivo.</p>
-              </div>
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-semibold uppercase tracking-wider">
+                <Settings className="w-3 h-3" /> Gerenciador de Campanhas
+              </span>
+              <h1 className="text-xl font-bold text-white mt-1">Configuração do Clube de Vantagens</h1>
+              <p className="text-zinc-500 text-xs font-light">Adicione cupons que serão listados na página inicial ou gerados na roleta.</p>
             </div>
 
-            {/* Grid Estatísticas */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Estatísticas */}
+            <div className="grid grid-cols-3 gap-6">
               {[
-                { label: 'Total Gerado', value: totalClaimed, icon: <Ticket className="w-5 h-5 text-indigo-400" />, desc: 'Cupons emitidos no simulador' },
-                { label: 'Cupons Ativos', value: activeCount, icon: <Layers className="w-5 h-5 text-emerald-400" />, desc: 'Aguardando utilização' },
-                { label: 'Cupons Resgatados', value: usedCount, icon: <CheckCircle className="w-5 h-5 text-purple-400" />, desc: 'Marcados como usados' },
-                { label: 'Economia Gerada', value: `R$ ${estimatedSavings},00`, icon: <DollarSign className="w-5 h-5 text-amber-400" />, desc: 'Simulada pelo uso' }
-              ].map((stat, idx) => (
-                <div key={idx} className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{stat.label}</span>
-                    {stat.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-extrabold text-white tracking-tight">{stat.value}</h3>
-                    <p className="text-[9px] text-zinc-500 mt-1">{stat.desc}</p>
-                  </div>
+                { label: 'Cupons Emitidos', value: totalCount },
+                { label: 'Ativos / Não Utilizados', value: activeCount },
+                { label: 'Cupons Resgatados', value: usedCount }
+              ].map((stat, i) => (
+                <div key={i} className="p-4 rounded-xl bg-zinc-900/30 border border-white/5">
+                  <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono block">{stat.label}</span>
+                  <span className="text-xl font-extrabold text-white tracking-tight mt-1 block">{stat.value}</span>
                 </div>
               ))}
             </div>
 
-            {/* Seções Lado a Lado: Criar Novo Cupom & Feed de Atividade */}
+            {/* Criação e Grid */}
             <div className="grid lg:grid-cols-12 gap-8 items-start">
-              
-              {/* LADO ESQUERDO: Formulário para criar nova campanha */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Criar Nova Campanha de Cupom</h3>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Configure os parâmetros do cupom Liquid Glass</p>
+              <div className="lg:col-span-5 p-6 rounded-xl bg-zinc-950 border border-white/5 space-y-6">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Novo Cupom</h3>
+                <form onSubmit={handleCreateAdminCoupon} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-semibold text-zinc-400 uppercase">Título (Ex: 10% OFF BARBA)</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={newCouponForm.title}
+                      onChange={(e) => setNewCouponForm({ ...newCouponForm, title: e.target.value })}
+                      className="w-full bg-zinc-900 border border-white/5 focus:border-cyan-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
+                    />
                   </div>
 
-                  <form onSubmit={handleCreateAdminCoupon} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-semibold text-zinc-400 uppercase">Descrição (Ex: Qualquer barbearia)</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={newCouponForm.description}
+                      onChange={(e) => setNewCouponForm({ ...newCouponForm, description: e.target.value })}
+                      className="w-full bg-zinc-900 border border-white/5 focus:border-cyan-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-semibold text-zinc-400 uppercase">Marca / E-commerce</label>
+                      <label className="text-[9px] font-semibold text-zinc-400 uppercase">Texto do Anel (Ex: 10% OFF)</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newCouponForm.badgeText}
+                        onChange={(e) => setNewCouponForm({ ...newCouponForm, badgeText: e.target.value })}
+                        className="w-full bg-zinc-900 border border-white/5 focus:border-cyan-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-semibold text-zinc-400 uppercase">Cor do Anel Neon</label>
                       <select 
-                        value={newCouponForm.brand}
-                        onChange={(e) => setNewCouponForm({ ...newCouponForm, brand: e.target.value })}
-                        className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
+                        value={newCouponForm.ringColor}
+                        onChange={(e) => setNewCouponForm({ ...newCouponForm, ringColor: e.target.value })}
+                        className="w-full bg-zinc-900 border border-white/5 focus:border-cyan-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
                       >
-                        <option value="Amazon">Amazon</option>
-                        <option value="Mercado Livre">Mercado Livre</option>
-                        <option value="Shopee">Shopee</option>
-                        <option value="AliExpress">AliExpress</option>
-                        <option value="Magalu">Magalu</option>
+                        <option value="#00E5FF">Ciano (Free)</option>
+                        <option value="#FFD54F">Dourado (10% Off)</option>
+                        <option value="#FF4081">Rosa (Combo VIP)</option>
                       </select>
                     </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-semibold text-zinc-400 uppercase">Valor de Desconto</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={newCouponForm.discount}
-                        onChange={(e) => setNewCouponForm({ ...newCouponForm, discount: e.target.value })}
-                        placeholder="Ex: R$ 50 OFF ou 20% OFF" 
-                        className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-semibold text-zinc-400 uppercase">Título da Campanha</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={newCouponForm.title}
-                        onChange={(e) => setNewCouponForm({ ...newCouponForm, title: e.target.value })}
-                        placeholder="Ex: Em todo o site sem mínimo" 
-                        className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-semibold text-zinc-400 uppercase">Tema Gradiente</label>
-                        <select 
-                          value={newCouponForm.gradient}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            let glow = 'rgba(99, 102, 241, 0.4)';
-                            if (val.includes('amber')) glow = 'rgba(245, 158, 11, 0.4)';
-                            if (val.includes('orange')) glow = 'rgba(249, 115, 22, 0.4)';
-                            if (val.includes('red')) glow = 'rgba(239, 68, 68, 0.4)';
-                            if (val.includes('blue')) glow = 'rgba(59, 130, 246, 0.4)';
-                            setNewCouponForm({ ...newCouponForm, gradient: val, glowColor: glow });
-                          }}
-                          className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition animate-none"
-                        >
-                          <option value="from-indigo-500 to-purple-600">Indigo (Padrão)</option>
-                          <option value="from-amber-500 to-orange-600">Laranja Amazon</option>
-                          <option value="from-orange-500 to-red-600">Laranja Shopee</option>
-                          <option value="from-red-500 to-rose-700">Vermelho Aliexpress</option>
-                          <option value="from-blue-500 to-indigo-600">Azul Magalu</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-semibold text-zinc-400 uppercase">Data de Expiração</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={newCouponForm.expiry}
-                          onChange={(e) => setNewCouponForm({ ...newCouponForm, expiry: e.target.value })}
-                          placeholder="Ex: 31/12/2026" 
-                          className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500 rounded-lg px-3 py-2 text-xs text-white outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <button 
-                      type="submit" 
-                      className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/10"
-                    >
-                      <Plus className="w-4 h-4" /> Cadastrar Campanha
-                    </button>
-                  </form>
-                </div>
-              </div>
-
-              {/* LADO DIREITO: Feed e Tabela de Todos os Cupons no Sistema */}
-              <div className="lg:col-span-7 space-y-6">
-                <div className="p-6 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">Histórico Geral de Emissões</h3>
-                      <p className="text-[10px] text-zinc-500">Listagem de todas as instâncias ativas no localStorage</p>
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        if (confirm('Deseja limpar todos os cupons salvos?')) {
-                          saveToLocalStorage([]);
-                        }
-                      }}
-                      className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Limpar Banco
-                    </button>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs font-mono">
-                      <thead>
-                        <tr className="border-b border-white/5 text-zinc-500 text-[10px]">
-                          <th className="py-2.5">Código</th>
-                          <th className="py-2.5">Marca</th>
-                          <th className="py-2.5">Desconto</th>
-                          <th className="py-2.5">Data Emissão</th>
-                          <th className="py-2.5">Status</th>
-                          <th className="py-2.5 text-right">Ação</th>
+                  <button 
+                    type="submit" 
+                    className="w-full py-2.5 rounded-lg bg-cyan-400 text-black hover:bg-cyan-300 transition font-bold text-xs tracking-wider uppercase cursor-pointer"
+                  >
+                    Adicionar Cupom
+                  </button>
+                </form>
+              </div>
+
+              {/* Tabela de listagem */}
+              <div className="lg:col-span-7 p-6 rounded-xl bg-zinc-950 border border-white/5 space-y-4">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">Listagem Geral</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs font-mono">
+                    <thead>
+                      <tr className="border-b border-white/5 text-zinc-500 text-[10px]">
+                        <th className="py-2">Código</th>
+                        <th className="py-2">Título</th>
+                        <th className="py-2">Status</th>
+                        <th className="py-2 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-zinc-300">
+                      {coupons.map((c) => (
+                        <tr key={c.id}>
+                          <td className="py-2.5 font-bold text-white">{c.code}</td>
+                          <td className="py-2.5">{c.title}</td>
+                          <td className="py-2.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                              c.status === 'active' 
+                                ? 'bg-cyan-500/10 text-cyan-400' 
+                                : 'bg-zinc-800 text-zinc-500'
+                            }`}>
+                              {c.status === 'active' ? 'Ativo' : 'Usado'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right space-x-2">
+                            <button
+                              onClick={() => handleToggleUsed(c.id)}
+                              className="text-[10px] text-zinc-500 hover:text-white transition cursor-pointer"
+                            >
+                              Status
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCoupon(c.id)}
+                              className="text-[10px] text-red-400 hover:text-red-300 transition cursor-pointer"
+                            >
+                              Remover
+                            </button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-zinc-300">
-                        {coupons.map((coupon) => (
-                          <tr key={coupon.id} className="hover:bg-white/5 transition-colors">
-                            <td className="py-3 font-bold text-white">{coupon.code}</td>
-                            <td className="py-3">{coupon.brand}</td>
-                            <td className="py-3">{coupon.discount}</td>
-                            <td className="py-3 text-[10px] text-zinc-500">{coupon.claimedAt}</td>
-                            <td className="py-3">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                coupon.status === 'active' 
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                  : 'bg-zinc-800 text-zinc-400'
-                              }`}>
-                                {coupon.status === 'active' ? 'Ativo' : 'Usado'}
-                              </span>
-                            </td>
-                            <td className="py-3 text-right">
-                              <button
-                                onClick={() => handleDeleteCoupon(coupon.id)}
-                                className="p-1 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 rounded transition cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {coupons.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="py-6 text-center text-zinc-500">Nenhum cupom gerado no sistema.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-
             </div>
 
           </div>
@@ -783,9 +576,8 @@ export default function CuponsPage() {
 
       </main>
 
-      {/* Footer minimalista de créditos */}
-      <footer className="max-w-6xl mx-auto px-6 py-12 border-t border-white/5 text-center text-[10px] text-zinc-600 font-mono select-none">
-        FIDELIX CARD SYSTEM & NEW COMPANY DESIGNS // TODOS OS DIREITOS RESERVADOS
+      <footer className="max-w-6xl mx-auto px-6 py-12 border-t border-white/5 text-center text-[9px] text-zinc-700 font-mono tracking-wider">
+        CLUBE FLOW & NEW COMPANY CORE SYSTEM
       </footer>
     </div>
   );
