@@ -209,10 +209,13 @@ export default function PortfolioContent() {
               <Sparkles className="w-3.5 h-3.5" /> Divisão Enterprise & IA
             </span>
           </div>
-          <div className="hidden md:flex gap-6 text-sm text-zinc-400 font-medium">
+          <div className="hidden md:flex gap-6 text-sm text-zinc-400 font-medium items-center">
             <a href="#company" className="hover:text-white transition">A Empresa</a>
             <a href="#stack" className="hover:text-white transition">Expertise</a>
             <a href="#showcase" className="hover:text-white transition">Projetos Ativos</a>
+            <a href="/cupons" className="text-orange-400 hover:text-orange-300 font-semibold transition flex items-center gap-1 px-2 py-0.5 rounded bg-orange-500/10 border border-orange-500/20">
+              <Sparkles className="w-3 h-3 text-orange-400" /> Demo Cupons 3D
+            </a>
             <a href="#contact" className="hover:text-white transition">Contato</a>
           </div>
           <a 
@@ -580,21 +583,31 @@ export default function PortfolioContent() {
                   </div>
 
                   {/* CTAs */}
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <button 
-                      onClick={() => setActiveModal(activeProject)}
-                      className="w-full py-2 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-[10px] border border-white/5 flex items-center justify-center gap-1.5 transition cursor-pointer"
-                    >
-                      <Server className="w-3.5 h-3.5" /> Arquitetura
-                    </button>
-                    <a 
-                      href={activeProject.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2 px-3 rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-[10px] flex items-center justify-center gap-1.5 transition"
-                    >
-                      <Globe className="w-3.5 h-3.5" /> Abrir Site <ArrowUpRight className="w-3.5 h-3.5" />
-                    </a>
+                  <div className="space-y-2 pt-2">
+                    {activeProject.id === 'fidelix' && (
+                      <a 
+                        href="/cupons"
+                        className="w-full py-2.5 px-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-400 hover:to-yellow-400 text-black font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition shadow-lg shadow-orange-500/15"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" /> Experimentar Demo Cupons 3D <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => setActiveModal(activeProject)}
+                        className="w-full py-2 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-[10px] border border-white/5 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Server className="w-3.5 h-3.5" /> Arquitetura
+                      </button>
+                      <a 
+                        href={activeProject.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2 px-3 rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-[10px] flex items-center justify-center gap-1.5 transition"
+                      >
+                        <Globe className="w-3.5 h-3.5" /> Abrir Site <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   </div>
                 </motion.div>
               </AnimatePresence>
