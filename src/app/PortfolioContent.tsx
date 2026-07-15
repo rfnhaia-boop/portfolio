@@ -68,7 +68,7 @@ export default function PortfolioContent() {
       description: 'Plataforma completa de cartão fidelidade digital. Substitui cartões de papel por QR Codes dinâmicos com fidelização gamificada em 3D direta no navegador do cliente, sem necessidade de download de aplicativos.',
       metrics: ['+45% de retorno de clientes recorrentes', 'Autenticação rápida sem atritos', 'Interface 3D com alta retenção'],
       stack: ['Next.js', 'React 19', 'Supabase', 'Tailwind CSS', 'Prisma', 'NextAuth'],
-      url: 'https://fidelix.newflowsys.cloud/',
+      url: '/cupons',
       architectureDiagram: {
         steps: [
           { title: 'Painel do Lojista', desc: 'Interface administrativa Next.js para gerenciamento de campanhas de selos e prêmios.' },
